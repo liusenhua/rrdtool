@@ -1,0 +1,99 @@
+#!/bin/sh
+
+currentDir=$(cd "$(dirname "$0")"; pwd)
+
+rrdfile=$currentDir/tmp/ping_db.rrd
+rrdgraphfile=$currentDir/tmp/ping_graph.png
+echo rrdfile: $rrdfile
+echo rrdgraphfile: $rrdgraphfile
+
+gawk=/usr/local/bin/gawk
+rrdtool=/Users/andy/t/bin/Darwin/rrdtool
+
+## Graph for last 24 hours
+$rrdtool graph $rrdgraphfile \
+-w 800 -h 400 -a PNG \
+--slope-mode \
+--start -86400 --end now \
+--font DEFAULT:10: \
+--title "ping www.baidu.com" \
+--watermark "`date`" \
+--vertical-label "latency(ms)" \
+--right-axis-label "latency(ms)" \
+--lower-limit 0 \
+--right-axis 1:0 \
+--x-grid MINUTE:10:HOUR:1:MINUTE:120:0:%R \
+--alt-y-grid --rigid \
+DEF:roundtrip=$rrdfile:rtt:MAX \
+DEF:packetloss=$rrdfile:pl:MAX \
+CDEF:PLNone=packetloss,0,0,LIMIT,UN,UNKN,INF,IF \
+CDEF:PL10=packetloss,1,10,LIMIT,UN,UNKN,INF,IF \
+CDEF:PL25=packetloss,10,25,LIMIT,UN,UNKN,INF,IF \
+CDEF:PL50=packetloss,25,50,LIMIT,UN,UNKN,INF,IF \
+CDEF:PL100=packetloss,50,100,LIMIT,UN,UNKN,INF,IF \
+LINE1:roundtrip#0000FF:"latency(ms)" \
+GPRINT:roundtrip:LAST:"Cur\: %5.2lf" \
+GPRINT:roundtrip:AVERAGE:"Avg\: %5.2lf" \
+GPRINT:roundtrip:MAX:"Max\: %5.2lf" \
+GPRINT:roundtrip:MIN:"Min\: %5.2lf\t\t\t" \
+COMMENT:"pkt loss\:" \
+AREA:PLNone#FFFFFF:"0%":STACK \
+AREA:PL10#FFFF00:"1-10%":STACK \
+AREA:PL25#FFCC00:"10-25%":STACK \
+AREA:PL50#FF8000:"25-50%":STACK \
+AREA:PL100#FF0000:"50-100%":STACK
+
+## copy to the web directory
+imgfolder=$currentDir/../img
+cp $rrdgraphfile $imgfolder
+
+
+#######################################################################################
+# -w 800 -h 600 -a PNG
+#   creates a graph 800 pixels wide and 600 pixels high with the PNG extension format.
+
+# --slope-mode
+#   rrdtool should smooth the graph and create a more organic looking lines.
+
+# --start -86400 --end now
+#   specifies the time in the past in seconds up to now to graph. 86400 seconds is 24 hours.
+
+# --x-grid MINUTE:10:HOUR:1:MINUTE:120:0:%R  --  rescales the x-axis in the graph and places the time labels below the graph.
+#   MINUTE:10 is to set the distance between the vertical gray lines on the graph. We are setting each gray line to 10 minute interval.
+#   HOUR:1 is to set the distance between the vertical red lines on the graph. We are setting each red line to 1 hour interval.
+#   MINUTE:120 sets the black label text of the time below the graph to line up with the vertical red lines. We liked the look of the hour being printed every other red line or once every 120 minutes.
+#   0:%R is the default spacing.
+
+
+# DEF:roundtrip=latency_db.rrd:rtt:MAX  --  define a variable from the database to a variable we will use to graph
+#   DEF stands for definition. To define a variable.
+#   roundtrip=latency_db.rrd:rtt assigns the "rtt" variable in the "latency_db.rrd" database to the local variable "roundtrip".
+#   MAX is the variable type we defined to the variable "rtt" when we initialized the database.
+
+
+# CDEF:PLNone=packetloss,0,0,LIMIT,UN,UNKN,INF,IF   --  This CDEF line will look for a packetloss value equal to 0% and up to 0% and set the value from 0 to infinite (i.e. the top of the graph).
+#   CDEF stands for definition calculation. CDEF are used to manipulate the data before graphing it.
+#   PLNone=packetloss,0,0,LIMIT,UN,UNKN,INF,IF assigns the "packetloss" variable to the range 0 to infinity if "packetloss" is between the values of 0% and 0% (basically just 0).
+
+
+# LINE1:roundtrip#0000FF:"latency(ms)"  --  create a legend value and draw a line.
+#   LINE1 says that this is simply a line.
+#   roundtrip#0000FF takes the values store in the "roundtrip" variable and colors it blue using the hex code 0000FF.
+#   "latency(ms)" is the label in the legend printed at the bottom of the picture. To the left of the label is a small square filled with the color of the data being graphed.
+
+
+# GPRINT:roundtrip:LAST:"Cur\: %5.2lf" -- GPRINT is used to print to the legend
+#   GPRINT may stand for graphics print. Not very descriptive really.
+#   roundtrip are the values we are using.
+#   LAST is the last value seen when the graph was made. In effect, this is current value in the database when the "rrdtool graph" command was called.
+#   "Cur\: %5.2lf" is the label in the legend. This is the "Cur"rent value and the print format is floating 5 values on the left and 2 on he right of the decimal.
+
+# COMMENT:"pkt loss\:" -- comments can be added to the legend using this directive.
+
+
+# AREA:PLNone#FFFFFF:"0%":STACK -- This is very similar to the LINE1 directive above. The AREA directive colors between a range of values.
+
+#   AREA means color between two points.
+#   PLNone#FFFFFF means the variable PLNone will be colored white (FFFFFF).
+#   "0%" is the legend label.
+#   STACK says that this AREA color should stack on top of the previous LINE1 directive. Think of the the blue line made from the LINE1 statement above is the base. This white colored AREA goes from that blue line to the top of the graph (infinity).

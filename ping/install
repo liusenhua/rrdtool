@@ -1,0 +1,44 @@
+#!/bin/sh
+
+#create temporary folder to save rrdtool files
+currentDir=$(cd "$(dirname "$0")"; pwd)
+echo currentDir: $currentDir
+
+tempfolder=$currentDir/tmp
+[ ! -d $tempfolder ] && mkdir $tempfolder
+
+imgfolder=$currentDir/../img
+[ ! -d $imgfolder ] && mkdir $imgfolder
+
+
+#make scripts executable
+chmod 755 create_db update_db create_graph
+
+
+#create rrdtool db file
+source ${currentDir}/create_db
+
+
+# create two cron jobs for update db and draw graph
+# 1) write out current cron job to a temp file firstly
+# 2) append the cron job entry to temp file
+# 3) install new cron file
+# 4) remove temp file
+crontab -l > mycron
+echo "*    *     *    *   *   $currentDir/update_db >>$tempfolder/update_log.txt 2>&1" >> mycron
+echo "*/3  *     *    *   *   $currentDir/create_graph >>$tempfolder/graph_log.txt 2>&1" >> mycron
+crontab mycron
+rm mycron
+
+############################################################################################
+#   user@machine# crontab -e
+#   minute (0-59)
+#   |    hour (0-23)
+#   |    |     day of the month (1-31)
+#   |    |     |    month of the year (1-12)
+#   |    |     |    |   day of the week (0-6 with 0=Sun)
+#   |    |     |    |   |   commands
+#   |    |     |    |   |   |
+#   #### rrdtool latency check
+#   *    *     *    *   *   $currentDir/update_db >>$tempfolder/update_log.txt 2>&1
+#   1,31 10-22 *    *   *   $currentDir/create_graph >> /dev/null 2>&1

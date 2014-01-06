@@ -1,0 +1,40 @@
+#!/bin/sh
+
+currentDir=$(cd "$(dirname "$0")"; pwd)
+
+# Set rrd file location
+rrdfile=$currentDir/tmp/ping_db.rrd
+echo rrdfile: $rrdfile
+
+rrdtool=/Users/andy/t/bin/Darwin/rrdtool
+
+# How to create a rrd file?(http://oss.oetiker.ch/rrdtool/doc/rrdcreate.en.html)
+#   rrdtool create filename [--start|-b start time] [--step|-s step] [--no-overwrite] [DS:ds-name:DST:dst arguments] [RRA:CF:cf arguments]
+
+$rrdtool create $rrdfile \
+--step=60 \
+DS:pl:GAUGE:120:0:100 \
+DS:rtt:GAUGE:120:0:10000000 \
+RRA:MAX:0.5:1:1500 \
+
+############################################################################################
+# 1) Use "DS" to define a data source.
+#   DS:ds-name:GAUGE | COUNTER | DERIVE | ABSOLUTE:heartbeat:min:max
+#
+# "DS:pl:GAUGE:120:0:100"
+#   DS -- says that this is a data set.
+#   pl -- a variable name to stand for "packet loss".
+#   GAUGE -- a RRDtool directive to mean the data entered is absolute and should be entered as is without any manipulation or calculations done to it.
+#   120 -- the heartbeat timeout in seconds. If data is not entered in at least 120 seconds then zeros are put into this DS record.
+#   0 -- the minimum value that will be accepted into the data base. Since the variable is for packet loss we expect the value to be between 0% and 100%.
+#   100 -- the maximum value that is accepted into this field. This variable is packet loss (pl) and we expect to see a value between 0% and 100%.
+
+# 2) Use "RRA" to tell RRDTool how to archive data.
+#   RRA:AVERAGE | MIN | MAX | LAST:xff:steps:rows
+#
+# "RRA:MAX:0.5:1:1500"
+#   RRA -- A directive defines how many values the the RRD database will archive and for how long.
+#   MAX -- means to only accept the maximum value if there are multiple values
+#   0.5 -- is an internal resolution value and should _not_ be changed.
+#   1 -- specifies how many steps should be averaged before storing the final value
+#   1500 -- how many "steps" we will store in the db

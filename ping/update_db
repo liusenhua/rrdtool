@@ -1,0 +1,52 @@
+#!/bin/sh
+
+currentDir=$(cd "$(dirname "$0")"; pwd)
+
+rrdfile=$currentDir/tmp/ping_db.rrd
+echo rrdfile: $rrdfile
+
+gawk=/usr/local/bin/gawk
+rrdtool=/Users/andy/t/bin/Darwin/rrdtool
+
+### data collection
+command="/sbin/ping -q -c 3"
+hostname="www.baidu.com"
+output=$($command $hostname 2>&1)
+RETURN_DATA=$(echo "$output" | $gawk '
+    BEGIN {pl=100; rtt=0.1}
+    /packets transmitted/ {
+        match($0, /([0-9.]+)% packet loss/, data_pl)
+        pl=data_pl[1]
+    }
+    /min\/avg\/max/ {
+        match($4, /(.*)\/(.*)\/(.*)\/(.*)/, data_rtt)
+        rtt=data_rtt[2]
+    }
+    END {print pl ":" rtt}
+')
+
+echo RETURN_DATA: $RETURN_DATA
+
+### update the database
+$rrdtool update $rrdfile --template pl:rtt N:$RETURN_DATA
+
+
+############################################################################################
+# awk [ -F fs ] [ -v var=value ] [ 'prog' | -f progfile ] [ file ...  ]
+#   Awk scans each input file for lines that match any of a set of patterns specified literally in prog or in one or more  files  specified  as  -f progfile.
+
+# A pattern-action statement has the form
+#
+#              pattern { action }
+#
+#   A  missing  {  action  } means print the line; a missing pattern always matches.  Pattern-action statements are separated by newlines or  semi-colons.
+#   Each line is  matched  against the pattern portion of every pattern-action statement; the associated action is performed for each matched pattern.
+
+# pattern
+#   The arbitrary Boolean combinations (with ! || &&)  of  regular expressions  and  relational  expressions.
+
+# action
+#   An  action  is a sequence of statements. Statements are terminated by semicolons, newlines or right braces.
+
+# BEGIN, END
+#   The special patterns BEGIN and END  may  be  used  to  capture  control before  the first input line is read and after the last. BEGIN and END do not combine with other patterns.

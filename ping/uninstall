@@ -1,0 +1,16 @@
+#!/bin/sh
+
+currentDir=$(cd "$(dirname "$0")"; pwd)
+echo currentDir: $currentDir
+
+#delete cron jobs
+# 1) write out current cron job entry to a temp file
+# 2) remove entry by filter non-rrdtool related entry
+# 3) write back
+crontab -l > mycron
+awk '!/(update_db|create_graph)/' mycron > mycron2
+crontab mycron2
+rm mycron mycron2
+
+tempfolder=$currentDir/tmp
+rm -rf $tempfolder
