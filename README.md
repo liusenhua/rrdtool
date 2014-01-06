@@ -24,9 +24,18 @@ The *uninstall* script clean everything.
 
     - Go environment
 
-## How to install
+## Installation
 
-For each example,
-    cd ping
-    chmod 755 ./install
-    ./install
+    For each script, set the proper paths of the variables at the top of the script
+    
+        $(gawk)
+        
+        $(rrdtool)
+
+    For each example(take 'ping' as example)
+    
+        cd ping
+    
+        chmod 755 ./install
+    
+        ./install
